@@ -143,7 +143,8 @@ class TestRegisterIndexing:
         patch_median = norms[:, layout["patch_idx"]].median()
         assert reg_mean > patch_median
 
-
-# ---------------------------------------------------------------------------------------- test 5
+@pytest.mark.skip(reason="needs internet: real DINO ViT-S/16 weights, the DINO-paper images, and "
+                         "a LOST implementation + VOC07 to reproduce CorLoc; see tests/README.md")
 def test_known_result_replication():
     pass
+
