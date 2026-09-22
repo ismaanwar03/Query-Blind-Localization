@@ -1,0 +1,55 @@
+# Guide §1.4 checkpoint registry. One entry per checkpoint, filled in by hand and verified
+# against the model card - epochs / pretrain_images_m / registers feed Section 11's confound
+# regression directly, so a wrong or missing value there is a wrong regression input, not just
+# bookkeeping.
+#
+# Below: the guide's own worked example (dino_vits16, verbatim from the PDF) plus placeholders
+# for the three checkpoints the §1.3 test suite already exercises. The placeholders are NOT
+# verified - I have not cross-checked their fields against each model's card, so treat every
+# `verify: true` entry as a TODO, not a filled-in row. Populating the rest of the zoo (Sets A-F,
+# positive controls, the medical extension) is the next chunk of this file, not something to
+# fabricate from memory here.
+
+- id: dino_vits16
+  source: timm/vit_small_patch16_224.dino
+  objective: self_distillation
+  arch: ViT-S/16
+  params_m: 21.7
+  depth: 12
+  pretrain_data: IN1k
+  pretrain_images_m: 1.28
+  epochs: 800
+  registers: 0
+  native_res: 224
+  license: Apache-2.0
+  set: A
+
+- id: deit3_small_patch16_224
+  source: timm/deit3_small_patch16_224
+  objective: label_supervised
+  arch: ViT-S/16
+  set: A
+  verify: true  # params_m / pretrain_data / epochs / license not yet checked against the model card
+
+- id: dinov2_vits14_reg
+  source: timm/vit_small_patch14_reg4_dinov2.lvd142m
+  objective: self_distillation
+  arch: ViT-S/14
+  registers: 4
+  native_res: 518  # §1.5: run at 196px (14x14 grid) for the primary protocol; see repo/tests/conftest.py
+  set: B
+  verify: true  # params_m / pretrain_images_m / epochs / license not yet checked
+
+- id: open_clip_vitb32_laion2b
+  source: "open_clip: ViT-B-32 / laion2b_s34b_b79k"
+  objective: image_text_contrastive
+  arch: ViT-B/32
+  set: F
+  verify: true  # not yet matched to the exact Set-F pretrained tag the proposal specifies
+
+- id: siglip_vitb16
+  source: "timm/vit_base_patch16_siglip_224"
+  objective: image_text_contrastive
+  arch: ViT-B/16 (MAP head)
+  set: F
+  verify: true  # confirm this is the SigLIP checkpoint the proposal means, vs. a SigLIP2 tag
