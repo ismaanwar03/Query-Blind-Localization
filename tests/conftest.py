@@ -13,16 +13,16 @@ from adapters.map_head import MapHeadAdapter
 
 
 def _timm(name, **kw):
-    return TimmViTAdapter(), timm.create_model(name, pretrained=False, **kw)
+    return TimmViTAdapter(), timm.create_model(name, pretrained=True, **kw)
 
 
 def _open_clip(name):
-    model = open_clip.create_model(name, pretrained=None)
+    model = open_clip.create_model('ViT-B-32', pretrained='laion2b_s34b_b79k')
     return OpenCLIPViTAdapter(), model.visual
 
 
 def _map_head(name):
-    return MapHeadAdapter(), timm.create_model(name, pretrained=False)
+    return MapHeadAdapter(), timm.create_model(name, pretrained=True)
 
 
 CHECKPOINTS = {
