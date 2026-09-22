@@ -23,6 +23,10 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
+import pathlib
+import sys
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
 from adapters.timm_vit import TimmViTAdapter
 
 # Both are standard COCO val2017 images. The cats+remotes one is what HuggingFace's own DINO demo
