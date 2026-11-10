@@ -3,13 +3,15 @@
 # regression directly, so a wrong or missing value there is a wrong regression input, not just
 # bookkeeping.
 #
-# Below: the guide's own worked example (dino_vits16, verbatim from the PDF) plus placeholders
-# for the three checkpoints the §1.3 test suite already exercises. The placeholders are NOT
-# verified - I have not cross-checked their fields against each model's card, so treat every
-# `verify: true` entry as a TODO, not a filled-in row. Populating the rest of the zoo (Sets A-F,
-# positive controls, the medical extension) is the next chunk of this file, not something to
-# fabricate from memory here.
+# Status: Sets A-F and the medical extension are researched below, each against its official
+# repo/model card via live search, not from memory. Two groups are NOT yet in this file at all:
+# positive controls (LaSt-ViT - a CVPR 2026 paper, plus test-time-register variants of OpenCLIP
+# and DINOv2) and BiomedCLIP's official card (only found an unofficial fine-tune so far, not the
+# real microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224 release) - both need a dedicated
+# follow-up pass rather than being guessed at here.
 
+# ---------------------------------------------------------------------------------------- Set A
+# ImageNet-1K, architecture (ViT-S/16, ViT-B/16) and data held fixed. Isolates: objective.
 - id: dino_vits16
   source: timm/vit_small_patch16_224.dino
   objective: self_distillation
@@ -23,22 +25,350 @@
   native_res: 224
   license: Apache-2.0
   set: A
+  # this row is the guide's own worked example, verbatim from the PDF
 
 - id: deit3_small_patch16_224
   source: timm/deit3_small_patch16_224
   objective: label_supervised
   arch: ViT-S/16
+  params_m: 22.1
+  pretrain_data: IN1k
+  pretrain_images_m: 1.28
+  registers: 0
+  native_res: 224
+  license: Apache-2.0  # inferred from the facebookresearch/deit lineage's usual license, not an explicit line quoted for DeiT-III itself
   set: A
-  verify: true  # params_m / pretrain_data / epochs / license not yet checked against the model card
+  verify: true  # epochs specifically: DeiT-III's IN-1K "from scratch" recipe epoch count not pinned down yet
+
+- id: ibot_vits16
+  source: github.com/bytedance/ibot
+  objective: self_distillation  # MIM (masked image modeling) + DINO-style CLS self-distillation
+  arch: ViT-S/16
+  params_m: 21
+  pretrain_data: IN1k
+  pretrain_images_m: 1.28
+  epochs: 800
+  registers: 0
+  native_res: 224
+  set: A
+  verify: true  # license not confirmed (no explicit LICENSE text found; ByteDance academic repos are often Apache-2.0 but not checked here)
+
+- id: mocov3_vits
+  source: github.com/facebookresearch/moco-v3
+  objective: contrastive
+  arch: ViT-S/16  # repo calls it "ViT-Small"; same architecture
+  params_m: 22
+  pretrain_data: IN1k
+  pretrain_images_m: 1.28
+  epochs: 300
+  registers: 0
+  native_res: 224
+  license: CC-BY-NC-4.0  # confirmed directly in the repo's README
+  set: A
+
+- id: mae_vitb16
+  source: github.com/facebookresearch/mae
+  objective: reconstruction
+  arch: ViT-B/16
+  params_m: 86
+  pretrain_data: IN1k
+  pretrain_images_m: 1.28
+  epochs: 1600  # the norm_pix_loss variant, Table 3 in the paper - the one the repo actually releases
+  registers: 0
+  native_res: 224
+  license: CC-BY-NC-4.0  # confirmed directly in the repo's README ("This project is under the CC-BY-NC 4.0 license")
+  set: A
+
+- id: tscam_deits
+  source: github.com/vasgaowei/TS-CAM
+  objective: label_supervised  # WSOL head on a DeiT-S backbone; the 2021 anchor per the proposal
+  arch: DeiT-S (ViT-S/16)
+  pretrain_data: IN1k
+  pretrain_images_m: 1.28
+  registers: 0
+  native_res: 224
+  license: Apache-2.0  # confirmed directly on the repo page
+  set: A
+  verify: true  # params_m / epochs not pinned down yet (backbone is DeiT-S's own pretraining, not a separate TS-CAM-specific pretrain)
+
+# ---------------------------------------------------------------------------------------- Set B
+# LVD-142M, sizes S to g. Isolates: registers only (data/recipe/size all held fixed).
+- id: dinov2_vits14
+  source: timm/vit_small_patch14_dinov2.lvd142m
+  objective: self_distillation
+  arch: ViT-S/14
+  params_m: 22.1
+  pretrain_data: LVD-142M
+  pretrain_images_m: 142
+  registers: 0
+  native_res: 518  # §1.5: run at 196px for the primary protocol
+  license: Apache-2.0  # confirmed on the official facebookresearch/dinov2 MODEL_CARD.md
+  set: B
+  verify: true  # epochs: DINOv2 is reported in iterations/samples-seen, not a simple epoch count over LVD-142M - needs the paper's actual schedule, not guessed here
 
 - id: dinov2_vits14_reg
   source: timm/vit_small_patch14_reg4_dinov2.lvd142m
   objective: self_distillation
   arch: ViT-S/14
+  params_m: 22.1
+  pretrain_data: LVD-142M
+  pretrain_images_m: 142
   registers: 4
-  native_res: 518  # §1.5: run at 196px (14x14 grid) for the primary protocol; see repo/tests/conftest.py
+  native_res: 518
+  license: Apache-2.0
   set: B
-  verify: true  # params_m / pretrain_images_m / epochs / license not yet checked
+  verify: true  # same epochs caveat as dinov2_vits14
+
+- id: dinov2_vitb14
+  source: timm/vit_base_patch14_dinov2.lvd142m
+  objective: self_distillation
+  arch: ViT-B/14
+  params_m: 86.6
+  pretrain_data: LVD-142M
+  pretrain_images_m: 142
+  registers: 0
+  native_res: 518
+  license: Apache-2.0
+  set: B
+  verify: true
+
+- id: dinov2_vitb14_reg
+  source: timm/vit_base_patch14_reg4_dinov2.lvd142m
+  objective: self_distillation
+  arch: ViT-B/14
+  params_m: 86.6
+  pretrain_data: LVD-142M
+  pretrain_images_m: 142
+  registers: 4
+  native_res: 518
+  license: Apache-2.0
+  set: B
+  verify: true
+
+- id: dinov2_vitl14
+  source: timm/vit_large_patch14_dinov2.lvd142m
+  objective: self_distillation
+  arch: ViT-L/14
+  params_m: 304.4
+  pretrain_data: LVD-142M
+  pretrain_images_m: 142
+  registers: 0
+  native_res: 518
+  license: Apache-2.0
+  set: B
+  verify: true
+
+- id: dinov2_vitl14_reg
+  source: timm/vit_large_patch14_reg4_dinov2.lvd142m
+  objective: self_distillation
+  arch: ViT-L/14
+  params_m: 304.4
+  pretrain_data: LVD-142M
+  pretrain_images_m: 142
+  registers: 4
+  native_res: 518
+  license: Apache-2.0
+  set: B
+  verify: true
+
+- id: dinov2_vitg14
+  source: timm/vit_giant_patch14_dinov2.lvd142m
+  objective: self_distillation
+  arch: ViT-g/14
+  params_m: 1136.5
+  pretrain_data: LVD-142M
+  pretrain_images_m: 142
+  registers: 0
+  native_res: 518
+  license: Apache-2.0
+  set: B
+  verify: true  # this one exceeds the proposal's "under 1B params" budget note - flag before running at scale
+
+- id: dinov2_vitg14_reg
+  source: timm/vit_giant_patch14_reg4_dinov2.lvd142m
+  objective: self_distillation
+  arch: ViT-g/14
+  params_m: 1136.5
+  pretrain_data: LVD-142M
+  pretrain_images_m: 142
+  registers: 4
+  native_res: 518
+  license: Apache-2.0
+  set: B
+  verify: true  # same over-budget flag as dinov2_vitg14
+
+# ---------------------------------------------------------------------------------------- Set C
+# Web-scale, same source (MC-2B via MetaCLIP curation). Isolates: language vs. no language.
+- id: webssl_dino_vit1b
+  source: github.com/facebookresearch/webssl
+  objective: self_distillation
+  arch: "ViT-1B (adapted from DINOv2 ViT-g)"
+  pretrain_data: MC-2B
+  pretrain_images_m: 2000
+  native_res: 224
+  license: CC-BY-NC  # confirmed on the repo (DINOv2-derived portions are Apache-2.0, but the Web-SSL release itself is CC-BY-NC)
+  set: C
+  verify: true  # params_m/registers/epochs not pinned down; also this is the SMALLEST Web-DINO size and still ~1.1B params, well over the proposal's usual under-1B budget - worth a explicit compute-budget decision before running
+
+- id: metaclip_vitb16
+  source: timm/vit_base_patch16_clip_224.metaclip_2pt5b
+  objective: image_text_contrastive
+  arch: ViT-B/16
+  params_m: 86
+  pretrain_data: MetaCLIP (2.5B image-text pairs)
+  native_res: 224
+  license: CC-BY-NC  # per the facebookresearch/MetaCLIP repo's own license note; the timm port's exact license line not separately checked
+  set: C
+  verify: true  # confirm this exact tag is the "same source as Web-SSL DINO" the proposal means, vs. a different MetaCLIP size/tag
+
+# ---------------------------------------------------------------------------------------- Set D
+# Scale and dense anchoring. Isolates: Gram anchoring, scale. 7B teacher excluded (compute).
+- id: dinov3_vits16
+  source: github.com/facebookresearch/dinov3
+  objective: self_distillation  # + Gram anchoring, DINOv3's own addition over v2
+  arch: ViT-S/16
+  params_m: 21
+  pretrain_data: LVD-1689M
+  pretrain_images_m: 1689
+  registers: 4
+  native_res: 224
+  license: DINOv3 License  # a custom Meta license, NOT a standard OSS license - check terms before redistributing anything derived from it
+  set: D
+
+- id: dinov3_vitb16
+  source: github.com/facebookresearch/dinov3
+  objective: self_distillation
+  arch: ViT-B/16
+  params_m: 86
+  pretrain_data: LVD-1689M
+  pretrain_images_m: 1689
+  registers: 4
+  native_res: 224
+  license: DINOv3 License
+  set: D
+  verify: true  # distilled-from-7B-teacher training details (effective epochs) not pinned down
+
+- id: dinov3_vitl16
+  source: github.com/facebookresearch/dinov3
+  objective: self_distillation
+  arch: ViT-L/16
+  params_m: 300
+  pretrain_data: LVD-1689M
+  pretrain_images_m: 1689
+  registers: 4
+  native_res: 224
+  license: DINOv3 License
+  set: D
+  verify: true
+
+- id: dinov3_vithplus16
+  source: github.com/facebookresearch/dinov3
+  objective: self_distillation
+  arch: ViT-H+/16
+  params_m: 840
+  pretrain_data: LVD-1689M
+  pretrain_images_m: 1689
+  registers: 4
+  native_res: 224
+  license: DINOv3 License
+  set: D
+  verify: true
+
+# ---------------------------------------------------------------------------------------- Set E
+# Label supervision at scale. Isolates: data scale under labels.
+- id: augreg_vits16_in21k
+  source: timm/vit_small_patch16_224.augreg_in21k
+  objective: label_supervised
+  arch: ViT-S/16
+  params_m: 22.2
+  pretrain_data: IN21k
+  pretrain_images_m: 14
+  registers: 0
+  native_res: 224
+  set: E
+  verify: true  # license not directly confirmed for this tag; epochs not pinned down (Steiner et al. use a compute budget, not a flat epoch count)
+
+- id: augreg_vitb16_in21k
+  source: timm/vit_base_patch16_224.augreg_in21k
+  objective: label_supervised
+  arch: ViT-B/16
+  params_m: 86
+  pretrain_data: IN21k
+  pretrain_images_m: 14
+  registers: 0
+  native_res: 224
+  set: E
+  verify: true
+
+- id: augreg_vitl16_in21k
+  source: timm/vit_large_patch16_224.augreg_in21k
+  objective: label_supervised
+  arch: ViT-L/16
+  params_m: 307
+  pretrain_data: IN21k
+  pretrain_images_m: 14
+  registers: 0
+  native_res: 224
+  set: E
+  verify: true
+
+- id: deit3_small_patch16_224_in21k
+  source: timm/deit3_small_patch16_224.fb_in22k_ft_in1k
+  objective: label_supervised
+  arch: ViT-S/16
+  params_m: 22.1
+  pretrain_data: IN21k (fine-tuned on IN1k)
+  pretrain_images_m: 14
+  registers: 0
+  native_res: 224
+  set: E
+  verify: true  # confirm this is the exact variant meant vs. a not-fine-tuned IN-21k-only tag; epochs/license not pinned down
+
+# ---------------------------------------------------------------------------------------- Set F
+# Modern image-text. Isolates: generality to 2025 encoders.
+- id: siglip2_vitb16
+  source: "hf-hub:timm/ViT-B-16-SigLIP2 (open_clip)"
+  objective: image_text_contrastive
+  arch: ViT-B/16
+  params_m: 86
+  pretrain_data: WebLI
+  native_res: 224
+  license: Apache-2.0  # confirmed on the sibling SigLIP (v1) timm cards; SigLIP2's own tag not separately re-checked
+  set: F
+  verify: true
+
+- id: siglip2_vitl16
+  source: "hf-hub:timm/ViT-L-16-SigLIP2 (open_clip)"
+  objective: image_text_contrastive
+  arch: ViT-L/16
+  params_m: 303
+  pretrain_data: WebLI
+  native_res: 224
+  license: Apache-2.0
+  set: F
+  verify: true
+
+- id: pe_core_b16
+  source: github.com/facebookresearch/perception_models
+  objective: image_text_contrastive
+  arch: ViT-B/16 (has a [CLS] token, unlike PE-Core-G)
+  params_m: 90  # vision tower only; +310M text tower, reported separately in the model card
+  pretrain_data: "5.4B image-alt-text pairs (MetaCLIP-curated) + synthetic video finetuning"
+  native_res: 224
+  license: Apache-2.0  # per the repo's LICENSE.PE file
+  set: F
+  verify: true  # exact sample/epoch count for the B-scale run specifically not pinned down
+
+- id: pe_core_l14
+  source: github.com/facebookresearch/perception_models
+  objective: image_text_contrastive
+  arch: ViT-L/14 (has a [CLS] token, unlike PE-Core-G)
+  params_m: 320
+  pretrain_data: "5.4B image-alt-text pairs (MetaCLIP-curated) + synthetic video finetuning"
+  native_res: 336
+  license: Apache-2.0
+  set: F
+  verify: true
 
 - id: open_clip_vitb32_laion2b
   source: "open_clip: ViT-B-32 / laion2b_s34b_b79k"
@@ -47,9 +377,109 @@
   set: F
   verify: true  # not yet matched to the exact Set-F pretrained tag the proposal specifies
 
+- id: open_clip_vitl14
+  source: "open_clip: ViT-L-14 / (tag TBD)"
+  objective: image_text_contrastive
+  arch: ViT-L/14
+  params_m: 304
+  set: F
+  verify: true  # exact pretrained tag (laion2b vs. laion400m vs. datacomp) not chosen yet - proposal just says "OpenCLIP ViT-B/L"
+
 - id: siglip_vitb16
   source: "timm/vit_base_patch16_siglip_224"
   objective: image_text_contrastive
   arch: ViT-B/16 (MAP head)
   set: F
-  verify: true  # confirm this is the SigLIP checkpoint the proposal means, vs. a SigLIP2 tag
+  verify: true  # confirm this is the SigLIP checkpoint the proposal means, vs. the SigLIP2 tags above
+
+# ------------------------------------------------------------------------------ Medical (extension)
+# Chest radiographs. Isolates: domain transfer of routing.
+- id: rad_dino
+  source: microsoft/rad-dino (Hugging Face)
+  objective: self_distillation  # DINOv2 recipe, finetuned from dinov2-base
+  arch: ViT-B/14
+  params_m: 86.6
+  pretrain_data: "5 public CXR datasets: MIMIC-CXR, CheXpert, NIH-CXR, PadChest, BRAX (882,775 images total)"
+  pretrain_images_m: 0.88
+  native_res: 518  # inherited from dinov2-base; not independently re-checked
+  license: MSRLA  # Microsoft Research License Agreement - research-only, NOT a standard permissive license; read before any redistribution
+  set: medical
+
+- id: medsiglip_448
+  source: google/medsiglip-448 (Hugging Face)
+  objective: image_text_contrastive
+  arch: "ViT (400M vision + 400M text towers)"
+  params_m: 400
+  pretrain_data: "de-identified medical image-text pairs (CXR, dermatology, ophthalmology, histopathology, CT/MRI slices) + natural images"
+  native_res: 448
+  license: "Health AI Developer Foundations terms of use"  # custom, requires accepting Google's terms - matches the proposal's own "verify MedSigLIP access terms" note
+  set: medical
+
+- id: biomedclip_vitb16
+  source: "microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224 (open_clip, via Hugging Face hub)"
+  objective: image_text_contrastive
+  arch: ViT-B/16
+  pretrain_data: PMC-15M (15M figure-caption pairs from PubMed Central)
+  license: MIT  # confirmed directly in the official repo's README metadata
+  set: medical
+
+- id: dinov3_vitb16_natural
+  source: github.com/facebookresearch/dinov3  # same checkpoint as dinov3_vitb16 in Set D - listed again here as the natural-image comparison point for the medical extension
+  # loads via transformers.DINOv3ViTModel (HF hub id: facebook/dinov3-vitb16-pretrain-lvd1689m), NOT timm - see adapters/dinov3_hf.py
+  objective: self_distillation
+  arch: ViT-B/16
+  params_m: 86
+  pretrain_data: LVD-1689M
+  pretrain_images_m: 1689
+  registers: 4
+  native_res: 224
+  license: DINOv3 License
+  set: medical
+
+# -------------------------------------------------------------------------------- Positive controls
+# Known shortcut-suppression mechanisms, used to validate that the metrics detect a known effect.
+- id: lastvit_dino
+  source: github.com/ChengShiest/LAST-ViT  # proposal calls it "LaSt-ViT"; official repo name is "LAST-ViT" - same paper
+  objective: self_distillation
+  arch: "ViT (exact size not confirmed - trained via the facebookresearch/dino script)"
+  set: positive_control
+  verify: true  # params/epochs/license not pinned down; paper is "Vision Transformers Need More Than Registers," Shi et al., CVPR 2026, arXiv 2602.22394
+
+- id: lastvit_clip
+  source: github.com/ChengShiest/LAST-ViT
+  objective: image_text_contrastive
+  arch: "ViT (exact size not confirmed - trained via the mlfoundations/open_clip script)"
+  set: positive_control
+  verify: true  # same paper as lastvit_dino; params/epochs/license not pinned down
+
+- id: lastvit_labelsup
+  source: github.com/ChengShiest/LAST-ViT
+  objective: label_supervised
+  arch: ViT-B/16
+  set: positive_control
+  verify: true  # same paper as lastvit_dino; epochs/license not pinned down
+
+- id: dinov2_vitl14_ttreg
+  source: github.com/nickjiang2378/test-time-registers
+  objective: self_distillation
+  arch: ViT-L/14
+  params_m: 304.4
+  pretrain_data: LVD-142M
+  pretrain_images_m: 142
+  registers: 0  # not trained with registers - test-time registers are a forward-hook edit, not added tokens; see the adapter note below
+  native_res: 518
+  set: positive_control
+  verify: true  # license not pinned down; NeurIPS 2025 Spotlight, "Vision Transformers Don't Need Trained Registers" (Jiang, Dravid, Efros, Gandelsman, arXiv 2506.08010) - needs its own adapter note since the mechanism is a live hook on register NEURONS, not a token-layout change
+
+- id: open_clip_ttreg
+  source: github.com/nickjiang2378/test-time-registers
+  objective: image_text_contrastive
+  arch: "ViT (exact size not confirmed - released as precomputed HF models)"
+  set: positive_control
+  verify: true  # same paper as dinov2_vitl14_ttreg; exact base architecture/size and license not pinned down
+
+# ---------------------------------------------------------------------------- STILL MISSING
+# Nothing from the proposal's zoo table is fully unresearched anymore. What's left is narrower:
+# the individual verify:true flags scattered above (mostly epoch counts, a few licenses, and a
+# couple of exact pretrained-tag choices for the OpenCLIP rows) - a field-by-field cleanup pass,
+# not a missing-checkpoint pass.
